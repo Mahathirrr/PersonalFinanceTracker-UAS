@@ -71,11 +71,9 @@ public class Account {
         return "Account{" +
                 "id=" + id +
                 ", userId=" + userId +
-                ", name=\'" + name + '\'\' +
+                ", name='" + name + '\'' +
                 ", balance=" + balance +
-                ", type=\'" + type + '\'\' +
-                ", isActive=" + isActive +
+                ", type='" + type + '\'' + ", isActive=" + isActive +
                 '}';
     }
 }
-
