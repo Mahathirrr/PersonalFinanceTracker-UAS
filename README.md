@@ -2,7 +2,10 @@
 
 ## Developer Information
 
-*   **Author:** Muhammad Mahathir (2208107010056)
+*   **Author:** 
+- Muhammad Mahathir (2208107010056)
+- Irfan Rizadi (2208107010062)
+
 *   **Course:** Component-Based Software
 *   **Lecturer:** Kurnia Saputra, S.T., M.Sc.
 
