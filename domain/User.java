@@ -1,4 +1,4 @@
-package com.example.financetracker.domain;
+package domain;
 
 import java.util.UUID;
 

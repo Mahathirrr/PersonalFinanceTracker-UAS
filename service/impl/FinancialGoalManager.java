@@ -1,9 +1,9 @@
-package com.example.financetracker.service.impl;
+package service.impl;
 
-import com.example.financetracker.domain.FinancialGoal;
-import com.example.financetracker.exception.NotFoundException;
-import com.example.financetracker.exception.ValidationException;
-import com.example.financetracker.service.interfaces.IManageFinancialGoal;
+import domain.FinancialGoal;
+import exception.NotFoundException;
+import exception.ValidationException;
+import service.interfaces.IManageFinancialGoal;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,7 +16,8 @@ import java.util.stream.Collectors;
 
 /**
  * Implementation of IManageFinancialGoal using in-memory storage.
- * NOTE: This is a basic implementation. A real application would use a database.
+ * NOTE: This is a basic implementation. A real application would use a
+ * database.
  * Assumes user existence is managed elsewhere or synced.
  */
 public class FinancialGoalManager implements IManageFinancialGoal {
@@ -31,7 +32,8 @@ public class FinancialGoalManager implements IManageFinancialGoal {
         // Ideally, user existence is managed centrally
     }
 
-    // Helper to simulate user existence (sync with other managers or use a central service)
+    // Helper to simulate user existence (sync with other managers or use a central
+    // service)
     public void addUser(UUID userId) {
         existingUsers.put(userId, true);
     }
@@ -66,7 +68,8 @@ public class FinancialGoalManager implements IManageFinancialGoal {
     }
 
     @Override
-    public UUID createFinancialGoal(UUID userId, String name, BigDecimal targetAmount, BigDecimal currentAmount, LocalDate deadline)
+    public UUID createFinancialGoal(UUID userId, String name, BigDecimal targetAmount, BigDecimal currentAmount,
+            LocalDate deadline)
             throws ValidationException, NotFoundException {
         checkUserExists(userId);
 
@@ -93,7 +96,8 @@ public class FinancialGoalManager implements IManageFinancialGoal {
     }
 
     @Override
-    public boolean updateFinancialGoal(UUID goalId, UUID userId, String name, BigDecimal targetAmount, BigDecimal currentAmount, LocalDate deadline)
+    public boolean updateFinancialGoal(UUID goalId, UUID userId, String name, BigDecimal targetAmount,
+            BigDecimal currentAmount, LocalDate deadline)
             throws ValidationException, NotFoundException, SecurityException {
         FinancialGoal goal = getFinancialGoalDetails(goalId, userId); // Checks user, existence, auth
 
@@ -110,20 +114,21 @@ public class FinancialGoalManager implements IManageFinancialGoal {
         // Allow current amount to exceed target during update? Or cap it?
         // Capping it for this example:
         if (currentAmount.compareTo(targetAmount) > 0) {
-             // throw new ValidationException("Current amount cannot exceed target amount.");
-             currentAmount = targetAmount; // Cap at target amount
+            // throw new ValidationException("Current amount cannot exceed target amount.");
+            currentAmount = targetAmount; // Cap at target amount
         }
         if (deadline == null || deadline.isBefore(LocalDate.now())) {
-             // Allow updating deadline to past? Maybe for marking historical goals?
-             // Keeping validation for future deadline for active goals.
-             if (!goal.isCompleted()) { // Only enforce future deadline for non-completed goals
+            // Allow updating deadline to past? Maybe for marking historical goals?
+            // Keeping validation for future deadline for active goals.
+            if (!goal.isCompleted()) { // Only enforce future deadline for non-completed goals
                 throw new ValidationException("Deadline must be in the future for active goals.");
-             }
+            }
         }
 
         goal.setName(name.trim());
         goal.setTargetAmount(targetAmount);
-        goal.setCurrentAmount(currentAmount); // This will also trigger re-check of completion status in the domain object
+        goal.setCurrentAmount(currentAmount); // This will also trigger re-check of completion status in the domain
+                                              // object
         goal.setDeadline(deadline);
 
         // In-memory update is automatic
@@ -131,7 +136,8 @@ public class FinancialGoalManager implements IManageFinancialGoal {
     }
 
     @Override
-    public boolean addContribution(UUID goalId, UUID userId, BigDecimal amount) throws ValidationException, NotFoundException, SecurityException {
+    public boolean addContribution(UUID goalId, UUID userId, BigDecimal amount)
+            throws ValidationException, NotFoundException, SecurityException {
         FinancialGoal goal = getFinancialGoalDetails(goalId, userId); // Checks user, existence, auth
 
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -159,4 +165,3 @@ public class FinancialGoalManager implements IManageFinancialGoal {
         return false; // Should not happen
     }
 }
-

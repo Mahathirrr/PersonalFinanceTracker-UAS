@@ -1,11 +1,11 @@
-package com.example.financetracker.service.impl;
+package service.impl;
 
-import com.example.financetracker.domain.Budget;
-import com.example.financetracker.domain.Category;
-import com.example.financetracker.exception.NotFoundException;
-import com.example.financetracker.exception.ValidationException;
-import com.example.financetracker.service.interfaces.IManageBudget;
-import com.example.financetracker.service.interfaces.IManageCategory;
+import domain.Budget;
+import domain.Category;
+import exception.NotFoundException;
+import exception.ValidationException;
+import service.interfaces.IManageBudget;
+import service.interfaces.IManageCategory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,7 +18,8 @@ import java.util.stream.Collectors;
 
 /**
  * Implementation of IManageBudget using in-memory storage.
- * NOTE: This is a basic implementation. A real application would use a database.
+ * NOTE: This is a basic implementation. A real application would use a
+ * database.
  * Assumes existence of CategoryManager and user management.
  */
 public class BudgetManager implements IManageBudget {
@@ -36,7 +37,8 @@ public class BudgetManager implements IManageBudget {
         // Ideally, user existence is managed centrally
     }
 
-    // Helper to simulate user existence (sync with other managers or use a central service)
+    // Helper to simulate user existence (sync with other managers or use a central
+    // service)
     public void addUser(UUID userId) {
         existingUsers.put(userId, true);
     }
@@ -71,7 +73,8 @@ public class BudgetManager implements IManageBudget {
     }
 
     @Override
-    public UUID createBudget(UUID userId, String name, BigDecimal amount, LocalDate startDate, LocalDate endDate, List<UUID> categoryIds)
+    public UUID createBudget(UUID userId, String name, BigDecimal amount, LocalDate startDate, LocalDate endDate,
+            List<UUID> categoryIds)
             throws ValidationException, NotFoundException, SecurityException {
         checkUserExists(userId);
 
@@ -95,7 +98,8 @@ public class BudgetManager implements IManageBudget {
                 Category category = categoryManager.getCategoryDetails(categoryId);
                 // Ensure categories are of type 'expense' for budgets (common requirement)
                 if (!category.getType().equalsIgnoreCase("expense")) {
-                    throw new ValidationException("Budget can only include expense categories. Category ID " + categoryId + " is of type " + category.getType());
+                    throw new ValidationException("Budget can only include expense categories. Category ID "
+                            + categoryId + " is of type " + category.getType());
                 }
                 // Add authorization checks if categories are user-specific
             } catch (NotFoundException e) {
@@ -103,13 +107,16 @@ public class BudgetManager implements IManageBudget {
             }
         }
 
-        Budget newBudget = new Budget(userId, name.trim(), amount, startDate, endDate, new ArrayList<>(categoryIds)); // Store a copy
+        Budget newBudget = new Budget(userId, name.trim(), amount, startDate, endDate, new ArrayList<>(categoryIds)); // Store
+                                                                                                                      // a
+                                                                                                                      // copy
         userBudgets.computeIfAbsent(userId, k -> new ConcurrentHashMap<>()).put(newBudget.getId(), newBudget);
         return newBudget.getId();
     }
 
     @Override
-    public boolean updateBudget(UUID budgetId, UUID userId, String name, BigDecimal amount, LocalDate startDate, LocalDate endDate, List<UUID> categoryIds, boolean isActive)
+    public boolean updateBudget(UUID budgetId, UUID userId, String name, BigDecimal amount, LocalDate startDate,
+            LocalDate endDate, List<UUID> categoryIds, boolean isActive)
             throws ValidationException, NotFoundException, SecurityException {
         Budget budget = getBudgetDetails(budgetId, userId); // Checks user, existence, auth
 
@@ -129,10 +136,11 @@ public class BudgetManager implements IManageBudget {
 
         // Validate categories
         for (UUID categoryId : categoryIds) {
-             try {
+            try {
                 Category category = categoryManager.getCategoryDetails(categoryId);
-                 if (!category.getType().equalsIgnoreCase("expense")) {
-                    throw new ValidationException("Budget can only include expense categories. Category ID " + categoryId + " is of type " + category.getType());
+                if (!category.getType().equalsIgnoreCase("expense")) {
+                    throw new ValidationException("Budget can only include expense categories. Category ID "
+                            + categoryId + " is of type " + category.getType());
                 }
             } catch (NotFoundException e) {
                 throw new NotFoundException("Category with ID " + categoryId + " not found.");
@@ -164,10 +172,10 @@ public class BudgetManager implements IManageBudget {
 
     // Helper method potentially needed by ReportGenerator or other services
     public boolean isCategoryUsedInBudgets(UUID categoryId, UUID userId) {
-         Map<UUID, Budget> budgets = userBudgets.get(userId);
-         if (budgets == null) return false;
-         return budgets.values().stream()
-                 .anyMatch(budget -> budget.getCategoryIds().contains(categoryId));
+        Map<UUID, Budget> budgets = userBudgets.get(userId);
+        if (budgets == null)
+            return false;
+        return budgets.values().stream()
+                .anyMatch(budget -> budget.getCategoryIds().contains(categoryId));
     }
 }
-

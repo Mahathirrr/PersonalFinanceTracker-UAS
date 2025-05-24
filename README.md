@@ -32,19 +32,18 @@ Based on requirements analysis and component design, the key implemented feature
 
 ## Project Structure
 
-The project follows a standard Maven/Gradle directory structure with logical separation as follows:
+The project follows a logical component-based structure with clear separation of concerns:
 
-*   `com.example.financetracker.domain`: Contains entity classes (POJOs) representing core data (User, Account, Transaction, Category, Budget, FinancialGoal).
-*   `com.example.financetracker.exception`: Contains custom exception classes for specific error handling (NotFoundException, ValidationException).
-*   `com.example.financetracker.service.interfaces`: Contains interfaces defining the contracts for each business service (IManageAccount, IManageTransaction, etc.).
-*   `com.example.financetracker.service.impl`: Contains concrete implementation classes of the service interfaces, using in-memory data storage for demonstration purposes.
+*   `domain/`: Contains entity classes (POJOs) representing core data (User, Account, Transaction, Category, Budget, FinancialGoal).
+*   `exception/`: Contains custom exception classes for specific error handling (NotFoundException, ValidationException).
+*   `service/interfaces/`: Contains interfaces defining the contracts for each business service (IManageAccount, IManageTransaction, etc.).
+*   `service/impl/`: Contains concrete implementation classes of the service interfaces, using in-memory data storage for demonstration purposes.
+*   `bin/`: Contains compiled `.class` files organized in the same structure as the source files.
 
 ## Technology
 
 *   Java
 *   In-Memory Data Storage (Basic implementation using Maps)
-
-
 
 ## How to Run
 
@@ -57,39 +56,76 @@ This project uses standard Java and does not require external build tools like M
 **Steps:**
 
 1.  **Navigate to the Project Root:**
-    Open your terminal or command prompt and navigate to the root directory of the project (`PersonalFinanceTracker`).
+    Open your terminal or command prompt and navigate to the root directory of the project (where `Main.java` is located).
 
 2.  **Compile the Java Files:**
-    Compile all the `.java` files from the `src/main/java` directory. The compiled `.class` files will be placed relative to the specified output directory (we'll use a `bin` directory here).
+    Compile all the `.java` files in the current directory and subdirectories. The compiled `.class` files will be placed in the `bin` directory.
 
     *   **On Linux/macOS:**
         ```bash
+        # Create bin directory if it doesn't exist
         mkdir -p bin
-        find src/main/java -name "*.java" > sources.txt
+        
+        # Find all Java files and compile them
+        find . -name "*.java" -not -path "./bin/*" > sources.txt
         javac -d bin @sources.txt
         rm sources.txt
         ```
     *   **On Windows:**
         ```cmd
-        mkdir bin
-        dir src\main\java\*.java /s /b > sources.txt
+        REM Create bin directory if it doesn't exist
+        if not exist bin mkdir bin
+        
+        REM Find all Java files and compile them
+        dir *.java /s /b | findstr /v "bin" > sources.txt
         javac -d bin @sources.txt
         del sources.txt
         ```
-    *(Note: The `find`/`dir` commands create a temporary file listing all source files, which `javac` then uses. This avoids issues with very long command lines.)*
 
 3.  **Run the Main Class:**
     Execute the `Main` class from the `bin` directory using the `java` command. You need to specify the classpath (`-cp` or `-classpath`) so Java can find the compiled classes.
 
     *   **On Linux/macOS:**
         ```bash
-        java -cp bin com.example.financetracker.Main
+        java -cp bin Main
         ```
     *   **On Windows:**
         ```cmd
-        java -cp bin com.example.financetracker.Main
+        java -cp bin Main
         ```
 
-4.  **Output:**
+4.  **Alternative Quick Compilation (if bin directory already exists):**
+    If you already have the `bin` directory and just want to recompile:
+
+    *   **On Linux/macOS:**
+        ```bash
+        javac -d bin *.java */*.java */*/*.java
+        java -cp bin Main
+        ```
+    *   **On Windows:**
+        ```cmd
+        javac -d bin *.java *\*.java *\*\*.java
+        java -cp bin Main
+        ```
+
+5.  **Output:**
     You should see the output from the demo operations printed to your console, showing the creation of accounts, categories, transactions, and a simple report.
 
+## Project Structure Tree
+```
+.
+├── bin/                    # Compiled .class files
+│   ├── domain/
+│   ├── exception/
+│   ├── service/
+│   │   ├── impl/
+│   │   └── interfaces/
+│   └── Main.class
+├── domain/                 # Entity classes
+├── exception/              # Custom exceptions
+├── service/                # Business logic
+│   ├── impl/              # Service implementations
+│   └── interfaces/        # Service interfaces
+├── Main.java              # Application entry point
+└── README.md
+```

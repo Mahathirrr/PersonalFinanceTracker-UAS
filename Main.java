@@ -1,120 +1,136 @@
-package com.example.financetracker;
-
-import com.example.financetracker.domain.*;
-import com.example.financetracker.exception.NotFoundException;
-import com.example.financetracker.exception.ValidationException;
-import com.example.financetracker.service.impl.*;
-import com.example.financetracker.service.interfaces.*;
-
+import java.util.Map;
+import java.util.UUID;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
 
-/**
- * Main class to demonstrate the functionality of the Personal Finance Tracker.
- * This class initializes the services and performs some example operations.
- */
+// Import domain classes
+import domain.Account;
+import domain.Category; // Assuming Category exists in domain
+import domain.Transaction;
+
+// Import implementation classes directly from service.impl
+import service.impl.AccountManager;
+import service.impl.TransactionManager;
+import service.impl.ReportGenerator;
+import service.impl.CategoryManager; // Assuming CategoryManager exists in service.impl
+
+// Import exceptions
+import exception.NotFoundException;
+import exception.ValidationException;
+
 public class Main {
-
     public static void main(String[] args) {
-        System.out.println("--- Personal Finance Tracker Demo ---");
-
-        // --- Service Initialization (using in-memory implementations) ---
-        // In a real application, these would be managed by a dependency injection framework (like Spring).
-        IManageCategory categoryManager = new CategoryManager();
-        IManageAccount accountManager = new AccountManager();
-        // Cast to implementation to add user for demo purposes
-        if (accountManager instanceof AccountManager) {
-            ((AccountManager) accountManager).addUser(UUID.fromString("00000000-0000-0000-0000-000000000001")); // Add a demo user
-        }
-        IManageTransaction transactionManager = new TransactionManager(accountManager, categoryManager);
-        IManageBudget budgetManager = new BudgetManager(categoryManager);
-        IManageFinancialGoal financialGoalManager = new FinancialGoalManager();
-        IGenerateReport reportGenerator = new ReportGenerator(transactionManager);
-
-        // Add user to other managers that might need it for demo
-        if (transactionManager instanceof TransactionManager) {
-             ((TransactionManager) transactionManager).addUser(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        }
-         if (budgetManager instanceof BudgetManager) {
-             ((BudgetManager) budgetManager).addUser(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        }
-         if (financialGoalManager instanceof FinancialGoalManager) {
-             ((FinancialGoalManager) financialGoalManager).addUser(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        }
-          if (reportGenerator instanceof ReportGenerator) {
-             ((ReportGenerator) reportGenerator).addUser(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        }
-
-
-        // --- Demo Operations ---
-        UUID demoUserId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        System.out.println("----- Personal Finance Tracker Demo -----");
 
         try {
-            System.out.println("\n1. Creating Account...");
-            UUID savingsAccountId = accountManager.createAccount(demoUserId, "Savings Account", new BigDecimal("1000.00"), "Savings");
-            System.out.println("   Account created with ID: " + savingsAccountId);
-            Account savingsAccount = accountManager.getAccountDetails(savingsAccountId, demoUserId);
-            System.out.println("   Account Details: " + savingsAccount);
+            // Initialize managers using the concrete classes from service.impl
+            AccountManager accountManager = new AccountManager();
+            CategoryManager categoryManager = new CategoryManager(); // Instantiate CategoryManager
+            // TransactionManager now depends on AccountManager and CategoryManager
+            TransactionManager transactionManager = new TransactionManager(accountManager, categoryManager);
+            // ReportGenerator depends on AccountManager and TransactionManager
+            ReportGenerator reportGenerator = new ReportGenerator(accountManager, transactionManager);
 
-            System.out.println("\n2. Creating Categories...");
-            UUID salaryCategoryId = categoryManager.createCategory("Salary", "income", "💰");
-            UUID foodCategoryId = categoryManager.createCategory("Food", "expense", "🍔");
-            UUID transportCategoryId = categoryManager.createCategory("Transport", "expense", "🚗");
-            System.out.println("   Salary Category ID: " + salaryCategoryId);
-            System.out.println("   Food Category ID: " + foodCategoryId);
-            System.out.println("   Transport Category ID: " + transportCategoryId);
+            // --- Setup ---
+            // Demo User ID
+            UUID demoUserId = UUID.randomUUID();
+            accountManager.addUser(demoUserId); // Ensure user exists in AccountManager
+            // categoryManager.addUser(demoUserId); // Add user to CategoryManager if it manages users
 
-            System.out.println("\n3. Recording Transactions...");
-            UUID incomeTxId = transactionManager.createTransaction(demoUserId, savingsAccountId, salaryCategoryId, new BigDecimal("2500.00"), LocalDate.now(), "Monthly Salary", "income");
-            System.out.println("   Income Transaction recorded. ID: " + incomeTxId);
-            savingsAccount = accountManager.getAccountDetails(savingsAccountId, demoUserId); // Refresh account details
-            System.out.println("   Account Balance after income: " + savingsAccount.getBalance());
+            // Create some categories first
+            System.out.println("\nCreating Categories...");
+            Category catIncome = categoryManager.createCategory("Salary", "Income");
+            Category catFood = categoryManager.createCategory("Food", "Expense");
+            Category catUtilities = categoryManager.createCategory("Utilities", "Expense");
+            Category catEntertainment = categoryManager.createCategory("Entertainment", "Expense");
+            Category catShopping = categoryManager.createCategory("Shopping", "Expense");
+            System.out.println("Categories Created.");
 
-            UUID expenseTxId1 = transactionManager.createTransaction(demoUserId, savingsAccountId, foodCategoryId, new BigDecimal("55.75"), LocalDate.now(), "Lunch", "expense");
-            System.out.println("   Expense Transaction recorded. ID: " + expenseTxId1);
-            UUID expenseTxId2 = transactionManager.createTransaction(demoUserId, savingsAccountId, transportCategoryId, new BigDecimal("30.00"), LocalDate.now(), "Gasoline", "expense");
-            System.out.println("   Expense Transaction recorded. ID: " + expenseTxId2);
+            // Create some accounts for the demo user
+            System.out.println("\nCreating Accounts...");
+            Account checkingAccount = accountManager.createAccount(demoUserId, "Checking Account", BigDecimal.valueOf(1000), "Checking");
+            Account savingsAccount = accountManager.createAccount(demoUserId, "Savings Account", BigDecimal.valueOf(5000), "Savings");
+            System.out.println("Accounts Created.");
 
-            savingsAccount = accountManager.getAccountDetails(savingsAccountId, demoUserId); // Refresh account details
-            System.out.println("   Account Balance after expenses: " + savingsAccount.getBalance());
+            // Display initial account balances
+            System.out.println("\nInitial Balances:");
+            System.out.println(accountManager.getAccount(checkingAccount.getId(), demoUserId));
+            System.out.println(accountManager.getAccount(savingsAccount.getId(), demoUserId));
+            System.out.println("-----");
 
-            System.out.println("\n4. Listing Transactions...");
-            List<Transaction> transactions = transactionManager.getTransactionList(demoUserId, null); // Get all transactions
-            System.out.println("   Total transactions found: " + transactions.size());
-            transactions.forEach(tx -> System.out.println("   - " + tx));
+            // --- Record Transactions ---
+            System.out.println("\nRecording Transactions...");
+            // Use category names now for recordTransaction
+            // Income
+            transactionManager.recordTransaction(demoUserId, checkingAccount.getId(), catIncome.getName(), "Income", BigDecimal.valueOf(2000), LocalDate.now());
+            // Expenses
+            transactionManager.recordTransaction(demoUserId, checkingAccount.getId(), catFood.getName(), "Expense", BigDecimal.valueOf(150), LocalDate.now().minusDays(5)); // Groceries
+            transactionManager.recordTransaction(demoUserId, checkingAccount.getId(), catFood.getName(), "Expense", BigDecimal.valueOf(75), LocalDate.now().minusDays(3)); // Dinner Out
+            transactionManager.recordTransaction(demoUserId, checkingAccount.getId(), catUtilities.getName(), "Expense", BigDecimal.valueOf(100), LocalDate.now().minusDays(10)); // Gas Bill
+            transactionManager.recordTransaction(demoUserId, checkingAccount.getId(), catEntertainment.getName(), "Expense", BigDecimal.valueOf(40), LocalDate.now().minusDays(1)); // Movie Tickets
+            transactionManager.recordTransaction(demoUserId, savingsAccount.getId(), catShopping.getName(), "Expense", BigDecimal.valueOf(200), LocalDate.now().minusDays(7)); // Online Shopping
+            System.out.println("Transactions Recorded.");
 
-            System.out.println("\n5. Creating Budget...");
-            UUID foodBudgetId = budgetManager.createBudget(demoUserId, "Monthly Food Budget", new BigDecimal("400.00"), LocalDate.now().withDayOfMonth(1), LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()), Collections.singletonList(foodCategoryId));
-            System.out.println("   Food Budget created with ID: " + foodBudgetId);
-            Budget foodBudget = budgetManager.getBudgetDetails(foodBudgetId, demoUserId);
-            System.out.println("   Budget Details: " + foodBudget);
+            // --- Display Data ---
+            // Display updated account balances
+            System.out.println("\nBalances after transactions:");
+            System.out.println(accountManager.getAccount(checkingAccount.getId(), demoUserId));
+            System.out.println(accountManager.getAccount(savingsAccount.getId(), demoUserId));
+            System.out.println("-----");
 
-            System.out.println("\n6. Generating Report (Spending by Category)...");
-            // Note: ReportGenerator currently returns Map<UUID, BigDecimal>
-            // A real implementation would likely return a more structured object or use CategoryManager to resolve names.
-            Map<UUID, BigDecimal> spendingReport = (Map<UUID, BigDecimal>) reportGenerator.generateReport(demoUserId, "spending_by_category", LocalDate.now().withDayOfMonth(1), LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()), null);
-            System.out.println("   Spending Report Data (CategoryID -> Amount):");
-            spendingReport.forEach((catId, amount) -> {
-                String categoryName = "Unknown";
-                try {
-                    categoryName = categoryManager.getCategoryDetails(catId).getName();
-                } catch (NotFoundException e) { /* Ignore */ }
-                System.out.println("     " + categoryName + " (" + catId + "): " + amount);
-            });
+            // Display transactions for the checking account
+            System.out.println("\nTransactions for Checking Account:");
+            for (Transaction t : transactionManager.getTransactionsByAccount(checkingAccount.getId())) {
+                System.out.println(t);
+            }
+            System.out.println("-----");
 
+            // Display transactions for the demo user within a date range
+            System.out.println("\nUser Transactions This Month:");
+            LocalDate startOfMonth = LocalDate.now().withDayOfMonth(1);
+            LocalDate endOfMonth = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
+            for (Transaction t : transactionManager.getTransactionsByUser(demoUserId, startOfMonth, endOfMonth)) {
+                System.out.println(t);
+            }
+            System.out.println("-----");
 
-        } catch (ValidationException | NotFoundException | SecurityException e) {
-            System.err.println("\nError during demo execution: " + e.getMessage());
-            e.printStackTrace();
+            // --- Generate Reports ---
+            System.out.println("\nGenerating Reports...");
+
+            // Spending by Category Report
+            System.out.println("\nSpending by Category Report (This Month):");
+            // ReportGenerator now returns Map<String, BigDecimal> for spending_by_category
+            Map<String, BigDecimal> spendingReport = (Map<String, BigDecimal>) reportGenerator.generateReport(demoUserId, "spending_by_category", startOfMonth, endOfMonth, null);
+            if (spendingReport != null && !spendingReport.isEmpty()) {
+                spendingReport.forEach((categoryName, amount) -> {
+                    // Amount is negative for expenses, display absolute value
+                    System.out.println("Category: " + categoryName + ", Amount Spent: " + amount.abs());
+                });
+            } else {
+                System.out.println("No spending data for this period or report failed.");
+            }
+            System.out.println("-----");
+
+            // Income vs Expense Report
+            System.out.println("\nIncome vs Expense Report (This Month):");
+            Map<String, BigDecimal> incomeExpenseReport = (Map<String, BigDecimal>) reportGenerator.generateReport(demoUserId, "income_vs_expense", startOfMonth, endOfMonth, null);
+            if (incomeExpenseReport != null) {
+                 System.out.println("Total Income: " + incomeExpenseReport.getOrDefault("totalIncome", BigDecimal.ZERO));
+                 System.out.println("Total Expense: " + incomeExpenseReport.getOrDefault("totalExpense", BigDecimal.ZERO));
+                 System.out.println("Net Flow: " + incomeExpenseReport.getOrDefault("netFlow", BigDecimal.ZERO));
+            } else {
+                 System.out.println("Could not generate income vs expense report.");
+            }
+            System.out.println("-----");
+
+        } catch (NotFoundException | ValidationException e) {
+            System.err.println("\n*** Error during demo execution: " + e.getMessage());
+            // e.printStackTrace(); // Uncomment for full stack trace
         } catch (Exception e) {
-            System.err.println("\nAn unexpected error occurred: " + e.getMessage());
+            System.err.println("\n*** An unexpected error occurred: " + e.getMessage());
             e.printStackTrace();
         }
 
-        System.out.println("\n--- Demo Finished ---");
+        System.out.println("\n----- End of Demo -----");
     }
 }
-

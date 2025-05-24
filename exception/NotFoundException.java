@@ -1,8 +1,9 @@
-package com.example.financetracker.exception;
+package exception;
 
 /**
  * Custom exception class for resource not found errors.
- * Used when an entity (e.g., User, Account, Transaction) cannot be found by its ID.
+ * Used when an entity (e.g., User, Account, Transaction) cannot be found by its
+ * ID.
  */
 public class NotFoundException extends Exception {
 
@@ -14,4 +15,3 @@ public class NotFoundException extends Exception {
         super(message, cause);
     }
 }
-

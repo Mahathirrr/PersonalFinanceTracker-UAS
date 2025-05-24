@@ -1,4 +1,4 @@
-package com.example.financetracker.exception;
+package exception;
 
 /**
  * Custom exception class for validation errors.
@@ -14,4 +14,3 @@ public class ValidationException extends Exception {
         super(message, cause);
     }
 }
-

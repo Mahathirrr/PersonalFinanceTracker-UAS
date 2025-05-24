@@ -1,9 +1,9 @@
-package com.example.financetracker.domain;
+package domain;
 
 import java.util.UUID;
 
 public class Category {
-    private UUID id;
+    private final UUID id;
     private String name;
     private String type; // "income" or "expense"
     private String icon; // Name or path to an icon representation
@@ -15,7 +15,7 @@ public class Category {
         this.icon = icon;
     }
 
-    // Getters and Setters
+    // Getters
     public UUID getId() {
         return id;
     }
@@ -24,20 +24,22 @@ public class Category {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public String getType() {
         return type;
     }
 
-    public void setType(String type) {
-        this.type = type;
-    }
-
     public String getIcon() {
         return icon;
+    }
+
+    // Setters
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setType(String type) {
+        // Add validation if necessary
+        this.type = type;
     }
 
     public void setIcon(String icon) {
@@ -46,12 +48,12 @@ public class Category {
 
     @Override
     public String toString() {
+        // Corrected toString with proper escaping for single quotes
         return "Category{" +
                 "id=" + id +
-                ", name=\'" + name + "\\'" +
-                ", type=\'" + type + "\\'" +
-                ", icon=\'" + icon + "\\'" +
+                ", name=\'" + name + "\'" +
+                ", type=\'" + type + "\'" +
+                ", icon=\'" + icon + "\'" +
                 '}';
     }
 }
-

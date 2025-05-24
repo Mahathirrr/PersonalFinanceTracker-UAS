@@ -1,4 +1,4 @@
-package com.example.financetracker.domain;
+package domain;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,7 +18,8 @@ public class Budget {
     private List<UUID> categoryIds; // Categories included in this budget
     private boolean isActive;
 
-    public Budget(UUID userId, String name, BigDecimal amount, LocalDate startDate, LocalDate endDate, List<UUID> categoryIds) {
+    public Budget(UUID userId, String name, BigDecimal amount, LocalDate startDate, LocalDate endDate,
+            List<UUID> categoryIds) {
         this.id = UUID.randomUUID();
         this.userId = userId;
         this.name = name;
@@ -100,4 +101,3 @@ public class Budget {
                 '}';
     }
 }
-
