@@ -1,0 +1,140 @@
+-- Interface IAccountMgt
+-- Mengelola akun dan transaksi
+
+-- Operasi: createAccount
+-- Membuat akun baru untuk user
+-- @param userId: ID user pemilik akun
+-- @param name: Nama akun
+-- @param balance: Saldo awal akun
+-- @param type: Tipe akun (CASH, BANK, CREDIT_CARD, INVESTMENT, OTHER)
+-- @return: ID akun yang baru dibuat
+context IAccountMgt::createAccount(userId: UserId, name: String, balance: Currency, type: String): AccountId
+pre:
+  -- User dengan ID yang diberikan harus ada
+  IUserMgt.users->exists(u | u.id = userId)
+  -- Nama akun tidak boleh kosong
+  and name <> ''
+  -- Saldo awal tidak boleh negatif
+  and balance >= 0
+  -- Tipe akun harus valid
+  and Set{'CASH', 'BANK', 'CREDIT_CARD', 'INVESTMENT', 'OTHER'}->includes(type)
+post:
+  -- Akun baru telah ditambahkan
+  self.accounts->exists(a | a.name = name and 
+                            a.balance = balance and 
+                            a.type = type and 
+                            a.isActive = true and
+                            result = a.id)
+  -- Jumlah akun bertambah satu
+  and self.accounts->size() = self.accounts@pre->size() + 1
+
+-- Operasi: getAccountDetails
+-- Mendapatkan detail akun berdasarkan ID
+-- @param accountId: ID akun yang ingin didapatkan detailnya
+-- @return: Objek Account yang berisi detail akun
+context IAccountMgt::getAccountDetails(accountId: AccountId): Account
+pre:
+  -- Akun dengan ID yang diberikan harus ada
+  self.accounts->exists(a | a.id = accountId)
+post:
+  -- Hasil operasi adalah akun dengan ID yang diberikan
+  result.id = accountId
+
+-- Operasi: updateAccountBalance
+-- Memperbarui saldo akun
+-- @param accountId: ID akun yang akan diperbarui
+-- @param amount: Jumlah yang ditambahkan atau dikurangkan dari saldo
+-- @param type: Tipe transaksi (INCOME, EXPENSE)
+-- @return: True jika berhasil diperbarui, false jika gagal
+context IAccountMgt::updateAccountBalance(accountId: AccountId, amount: Currency, type: String): Boolean
+pre:
+  -- Akun dengan ID yang diberikan harus ada dan aktif
+  self.accounts->exists(a | a.id = accountId and a.isActive = true)
+  -- Amount harus positif
+  and amount > 0
+  -- Tipe transaksi harus valid
+  and Set{'INCOME', 'EXPENSE'}->includes(type)
+  -- Jika tipe transaksi adalah EXPENSE, saldo akun harus mencukupi
+  and (type = 'EXPENSE' implies 
+       let account = self.accounts->select(a | a.id = accountId)->first() in
+       account.balance >= amount)
+post:
+  -- Saldo akun telah diperbarui
+  let account = self.accounts->select(a | a.id = accountId)->first() in
+  if type = 'INCOME' then
+    account.balance = account.balance@pre + amount
+  else
+    account.balance = account.balance@pre - amount
+  endif
+  -- Hasil operasi adalah true
+  and result = true
+
+-- Operasi: createTransaction
+-- Mencatat transaksi baru
+-- @param accountId: ID akun terkait transaksi
+-- @param amount: Jumlah transaksi
+-- @param date: Tanggal transaksi
+-- @param description: Deskripsi transaksi
+-- @param categoryId: ID kategori transaksi
+-- @param type: Tipe transaksi (INCOME, EXPENSE)
+-- @return: ID transaksi yang baru dibuat
+context IAccountMgt::createTransaction(accountId: AccountId, amount: Currency, date: Date, description: String, categoryId: CategoryId, type: String): TransactionId
+pre:
+  -- Akun dengan ID yang diberikan harus ada dan aktif
+  self.accounts->exists(a | a.id = accountId and a.isActive = true)
+  -- Jumlah transaksi harus positif
+  and amount > 0
+  -- Tanggal tidak boleh di masa depan
+  and date <= Date.today()
+  -- Deskripsi tidak boleh kosong
+  and description <> ''
+  -- Kategori dengan ID yang diberikan harus ada
+  and ICategoryMgt.categories->exists(c | c.id = categoryId)
+  -- Tipe transaksi harus valid
+  and Set{'INCOME', 'EXPENSE'}->includes(type)
+  -- Jika tipe transaksi adalah EXPENSE, saldo akun harus mencukupi
+  and (type = 'EXPENSE' implies 
+       let account = self.accounts->select(a | a.id = accountId)->first() in
+       account.balance >= amount)
+post:
+  -- Transaksi baru telah ditambahkan
+  self.transactions->exists(t | t.amount = amount and 
+                               t.date = date and 
+                               t.description = description and 
+                               t.categoryId = categoryId and
+                               t.type = type and
+                               result = t.id)
+  -- Saldo akun telah diperbarui
+  let account = self.accounts->select(a | a.id = accountId)->first() in
+  if type = 'INCOME' then
+    account.balance = account.balance@pre + amount
+  else
+    account.balance = account.balance@pre - amount
+  endif
+  -- Jumlah transaksi bertambah satu
+  and self.transactions->size() = self.transactions@pre->size() + 1
+
+-- Operasi: getTransactionList
+-- Mendapatkan daftar transaksi berdasarkan filter
+-- @param filters: Map filter untuk transaksi (accountId, categoryId, startDate, endDate, type)
+-- @return: Daftar transaksi yang sesuai dengan filter
+context IAccountMgt::getTransactionList(filters: Map): List<Transaction>
+pre:
+  -- Tidak ada pre-condition khusus
+  true
+post:
+  -- Hasil operasi adalah daftar transaksi yang sesuai dengan filter
+  filters->isEmpty() implies result = self.transactions
+  and filters->notEmpty() implies
+    let accountId = filters->get('accountId') in
+    let categoryId = filters->get('categoryId') in
+    let startDate = filters->get('startDate') in
+    let endDate = filters->get('endDate') in
+    let type = filters->get('type') in
+    result = self.transactions->select(t |
+      (accountId->isUndefined() or t.accountId = accountId) and
+      (categoryId->isUndefined() or t.categoryId = categoryId) and
+      (startDate->isUndefined() or t.date >= startDate) and
+      (endDate->isUndefined() or t.date <= endDate) and
+      (type->isUndefined() or t.type = type)
+    )

@@ -1,0 +1,269 @@
+-- Interface IUserMgt
+-- Mengelola user dan tujuan keuangan
+
+-- Operasi: createUser
+-- Membuat user baru dalam sistem
+-- @param name: Nama user
+-- @param email: Alamat email user
+-- @param password: Password user
+-- @return: ID user yang baru dibuat
+context IUserMgt::createUser(name: String, email: String, password: String): UserId
+pre: -- Kondisi yang harus dipenuhi sebelum operasi dijalankan
+  -- Email harus unik
+  not self.users->exists(u | u.email = email)
+  -- Nama tidak boleh kosong
+  and name <> ''
+  -- Email harus valid (format sederhana)
+  and email.indexOf('@') > 0
+  -- Password harus memiliki minimal 8 karakter
+  and password.size() >= 8
+post: -- Kondisi yang harus dipenuhi setelah operasi dijalankan
+  -- User baru telah ditambahkan ke koleksi users
+  self.users->exists(u | u.name = name and u.email = email and result = u.id)
+  -- Jumlah user bertambah satu
+  and self.users->size() = self.users@pre->size() + 1
+
+-- Operasi: updateUser
+-- Memperbarui informasi user yang ada
+-- @param userId: ID user yang akan diperbarui
+-- @param name: Nama baru user
+-- @param email: Alamat email baru user
+-- @return: True jika berhasil diperbarui, false jika gagal
+context IUserMgt::updateUser(userId: UserId, name: String, email: String): Boolean
+pre:
+  -- User dengan ID yang diberikan harus ada
+  self.users->exists(u | u.id = userId)
+  -- Nama tidak boleh kosong
+  and name <> ''
+  -- Email harus valid
+  and email.indexOf('@') > 0
+  -- Email harus unik kecuali milik user yang sedang diupdate
+  and (self.users->forAll(u | u.email = email implies u.id = userId) or
+       not self.users->exists(u | u.email = email))
+post:
+  -- User telah diperbarui
+  self.users->exists(u | u.id = userId and u.name = name and u.email = email)
+  -- Jumlah user tidak berubah
+  and self.users->size() = self.users@pre->size()
+  -- Hasil operasi adalah true
+  and result = true
+
+-- Operasi: getUserDetails
+-- Mendapatkan detail user berdasarkan ID
+-- @param userId: ID user yang ingin didapatkan detailnya
+-- @return: Objek User yang berisi detail user
+context IUserMgt::getUserDetails(userId: UserId): User
+pre:
+  -- User dengan ID yang diberikan harus ada
+  self.users->exists(u | u.id = userId)
+post:
+  -- Hasil operasi adalah user dengan ID yang diberikan
+  result.id = userId
+
+-- Operasi: createFinancialGoal
+-- Membuat tujuan keuangan baru untuk user
+-- @param userId: ID user yang membuat tujuan
+-- @param name: Nama tujuan keuangan
+-- @param targetAmount: Jumlah target yang ingin dicapai
+-- @param currentAmount: Jumlah awal yang sudah dimiliki
+-- @param deadline: Tenggat waktu pencapaian tujuan
+-- @return: ID tujuan keuangan yang baru dibuat
+context IUserMgt::createFinancialGoal(userId: UserId, name: String, targetAmount: Currency, currentAmount: Currency, deadline: Date): GoalId
+pre:
+  -- User dengan ID yang diberikan harus ada
+  self.users->exists(u | u.id = userId)
+  -- Nama tujuan tidak boleh kosong
+  and name <> ''
+  -- Target amount harus positif
+  and targetAmount > 0
+  -- Current amount tidak boleh negatif
+  and currentAmount >= 0
+  -- Current amount tidak boleh melebihi target amount
+  and currentAmount <= targetAmount
+  -- Deadline harus di masa depan
+  and deadline > Date.today()
+post:
+  -- Tujuan keuangan baru telah ditambahkan
+  let user = self.users->select(u | u.id = userId)->first() in
+  user.financialGoals->exists(g | g.name = name and 
+                                  g.targetAmount = targetAmount and 
+                                  g.currentAmount = currentAmount and 
+                                  g.deadline = deadline and 
+                                  result = g.id)
+  -- Jumlah tujuan keuangan user bertambah satu
+  and let user = self.users->select(u | u.id = userId)->first() in
+      user.financialGoals->size() = user.financialGoals@pre->size() + 1
+
+-- Operasi: updateGoalProgress
+-- Memperbarui kemajuan tujuan keuangan
+-- @param goalId: ID tujuan keuangan yang akan diperbarui
+-- @param amount: Jumlah yang ditambahkan ke jumlah saat ini
+-- @return: True jika berhasil diperbarui, false jika gagal
+context IUserMgt::updateGoalProgress(goalId: GoalId, amount: Currency): Boolean
+pre:
+  -- Tujuan keuangan dengan ID yang diberikan harus ada
+  self.users->exists(u | u.financialGoals->exists(g | g.id = goalId))
+  -- Amount harus positif
+  and amount > 0
+  -- Jumlah saat ini ditambah amount tidak boleh melebihi target amount
+  and let goal = self.users->collect(u | u.financialGoals)->flatten()->select(g | g.id = goalId)->first() in
+      goal.currentAmount + amount <= goal.targetAmount
+post:
+  -- Jumlah saat ini telah diperbarui
+  let goal = self.users->collect(u | u.financialGoals)->flatten()->select(g | g.id = goalId)->first() in
+  goal.currentAmount = goal.currentAmount@pre + amount
+  -- Jika jumlah saat ini sama dengan target amount, tujuan ditandai sebagai selesai
+  and let goal = self.users->collect(u | u.financialGoals)->flatten()->select(g | g.id = goalId)->first() in
+      if goal.currentAmount = goal.targetAmount then
+        goal.isCompleted = true
+      endif
+  -- Hasil operasi adalah true
+  and result = true
+```
+
+**Penjelasan IUserMgt OCL:**
+OCL untuk IUserMgt mendefinisikan pre-conditions dan post-conditions untuk operasi-operasi yang terkait dengan pengelolaan user dan tujuan keuangan. Pre-conditions memastikan bahwa input valid sebelum operasi dijalankan, seperti email harus unik dan password harus memiliki minimal 8 karakter. Post-conditions memastikan bahwa operasi menghasilkan perubahan yang diharapkan, seperti user baru telah ditambahkan ke koleksi users. OCL ini membantu memastikan bahwa operasi berjalan dengan benar dan konsisten, serta memudahkan pengujian dan debugging.
+
+### IAccountMgt
+
+```
+-- Interface IAccountMgt
+-- Mengelola akun dan transaksi
+
+-- Operasi: createAccount
+-- Membuat akun baru untuk user
+-- @param userId: ID user pemilik akun
+-- @param name: Nama akun
+-- @param balance: Saldo awal akun
+-- @param type: Tipe akun (CASH, BANK, CREDIT_CARD, INVESTMENT, OTHER)
+-- @return: ID akun yang baru dibuat
+context IAccountMgt::createAccount(userId: UserId, name: String, balance: Currency, type: String): AccountId
+pre:
+  -- User dengan ID yang diberikan harus ada
+  IUserMgt.users->exists(u | u.id = userId)
+  -- Nama akun tidak boleh kosong
+  and name <> ''
+  -- Saldo awal tidak boleh negatif
+  and balance >= 0
+  -- Tipe akun harus valid
+  and Set{'CASH', 'BANK', 'CREDIT_CARD', 'INVESTMENT', 'OTHER'}->includes(type)
+post:
+  -- Akun baru telah ditambahkan
+  self.accounts->exists(a | a.name = name and 
+                            a.balance = balance and 
+                            a.type = type and 
+                            a.isActive = true and
+                            result = a.id)
+  -- Jumlah akun bertambah satu
+  and self.accounts->size() = self.accounts@pre->size() + 1
+
+-- Operasi: getAccountDetails
+-- Mendapatkan detail akun berdasarkan ID
+-- @param accountId: ID akun yang ingin didapatkan detailnya
+-- @return: Objek Account yang berisi detail akun
+context IAccountMgt::getAccountDetails(accountId: AccountId): Account
+pre:
+  -- Akun dengan ID yang diberikan harus ada
+  self.accounts->exists(a | a.id = accountId)
+post:
+  -- Hasil operasi adalah akun dengan ID yang diberikan
+  result.id = accountId
+
+-- Operasi: updateAccountBalance
+-- Memperbarui saldo akun
+-- @param accountId: ID akun yang akan diperbarui
+-- @param amount: Jumlah yang ditambahkan atau dikurangkan dari saldo
+-- @param type: Tipe transaksi (INCOME, EXPENSE)
+-- @return: True jika berhasil diperbarui, false jika gagal
+context IAccountMgt::updateAccountBalance(accountId: AccountId, amount: Currency, type: String): Boolean
+pre:
+  -- Akun dengan ID yang diberikan harus ada dan aktif
+  self.accounts->exists(a | a.id = accountId and a.isActive = true)
+  -- Amount harus positif
+  and amount > 0
+  -- Tipe transaksi harus valid
+  and Set{'INCOME', 'EXPENSE'}->includes(type)
+  -- Jika tipe transaksi adalah EXPENSE, saldo akun harus mencukupi
+  and (type = 'EXPENSE' implies 
+       let account = self.accounts->select(a | a.id = accountId)->first() in
+       account.balance >= amount)
+post:
+  -- Saldo akun telah diperbarui
+  let account = self.accounts->select(a | a.id = accountId)->first() in
+  if type = 'INCOME' then
+    account.balance = account.balance@pre + amount
+  else
+    account.balance = account.balance@pre - amount
+  endif
+  -- Hasil operasi adalah true
+  and result = true
+
+-- Operasi: createTransaction
+-- Mencatat transaksi baru
+-- @param accountId: ID akun terkait transaksi
+-- @param amount: Jumlah transaksi
+-- @param date: Tanggal transaksi
+-- @param description: Deskripsi transaksi
+-- @param categoryId: ID kategori transaksi
+-- @param type: Tipe transaksi (INCOME, EXPENSE)
+-- @return: ID transaksi yang baru dibuat
+context IAccountMgt::createTransaction(accountId: AccountId, amount: Currency, date: Date, description: String, categoryId: CategoryId, type: String): TransactionId
+pre:
+  -- Akun dengan ID yang diberikan harus ada dan aktif
+  self.accounts->exists(a | a.id = accountId and a.isActive = true)
+  -- Jumlah transaksi harus positif
+  and amount > 0
+  -- Tanggal tidak boleh di masa depan
+  and date <= Date.today()
+  -- Deskripsi tidak boleh kosong
+  and description <> ''
+  -- Kategori dengan ID yang diberikan harus ada
+  and ICategoryMgt.categories->exists(c | c.id = categoryId)
+  -- Tipe transaksi harus valid
+  and Set{'INCOME', 'EXPENSE'}->includes(type)
+  -- Jika tipe transaksi adalah EXPENSE, saldo akun harus mencukupi
+  and (type = 'EXPENSE' implies 
+       let account = self.accounts->select(a | a.id = accountId)->first() in
+       account.balance >= amount)
+post:
+  -- Transaksi baru telah ditambahkan
+  self.transactions->exists(t | t.amount = amount and 
+                               t.date = date and 
+                               t.description = description and 
+                               t.categoryId = categoryId and
+                               t.type = type and
+                               result = t.id)
+  -- Saldo akun telah diperbarui
+  let account = self.accounts->select(a | a.id = accountId)->first() in
+  if type = 'INCOME' then
+    account.balance = account.balance@pre + amount
+  else
+    account.balance = account.balance@pre - amount
+  endif
+  -- Jumlah transaksi bertambah satu
+  and self.transactions->size() = self.transactions@pre->size() + 1
+
+-- Operasi: getTransactionList
+-- Mendapatkan daftar transaksi berdasarkan filter
+-- @param filters: Map filter untuk transaksi (accountId, categoryId, startDate, endDate, type)
+-- @return: Daftar transaksi yang sesuai dengan filter
+context IAccountMgt::getTransactionList(filters: Map): List<Transaction>
+pre:
+  -- Tidak ada pre-condition khusus
+  true
+post:
+  -- Hasil operasi adalah daftar transaksi yang sesuai dengan filter
+  filters->isEmpty() implies result = self.transactions
+  and filters->notEmpty() implies
+    let accountId = filters->get('accountId') in
+    let categoryId = filters->get('categoryId') in
+    let startDate = filters->get('startDate') in
+    let endDate = filters->get('endDate') in
+    let type = filters->get('type') in
+    result = self.transactions->select(t |
+      (accountId->isUndefined() or t.accountId = accountId) and
+      (categoryId->isUndefined() or t.categoryId = categoryId) and
+      (startDate->isUndefined() or t.date >= startDate) and
+      (endDate->isUndefined() or t.date <= endDate) and
+      (type->isUndefined() or t.type = type)
+    )

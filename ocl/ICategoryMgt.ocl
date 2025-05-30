@@ -1,0 +1,127 @@
+-- Interface ICategoryMgt
+-- Mengelola kategori dan anggaran
+
+-- Operasi: createCategory
+-- Membuat kategori baru
+-- @param name: Nama kategori
+-- @param type: Tipe kategori (INCOME, EXPENSE)
+-- @param icon: Ikon kategori
+-- @return: ID kategori yang baru dibuat
+context ICategoryMgt::createCategory(name: String, type: String, icon: String): CategoryId
+pre:
+  -- Nama kategori tidak boleh kosong
+  name <> ''
+  -- Tipe kategori harus valid
+  and Set{'INCOME', 'EXPENSE'}->includes(type)
+  -- Nama kategori harus unik dalam tipe yang sama
+  and not self.categories->exists(c | c.name = name and c.type = type)
+post:
+  -- Kategori baru telah ditambahkan
+  self.categories->exists(c | c.name = name and 
+                              c.type = type and 
+                              c.icon = icon and
+                              result = c.id)
+  -- Jumlah kategori bertambah satu
+  and self.categories->size() = self.categories@pre->size() + 1
+
+-- Operasi: getCategoryDetails
+-- Mendapatkan detail kategori berdasarkan ID
+-- @param categoryId: ID kategori yang ingin didapatkan detailnya
+-- @return: Objek Category yang berisi detail kategori
+context ICategoryMgt::getCategoryDetails(categoryId: CategoryId): Category
+pre:
+  -- Kategori dengan ID yang diberikan harus ada
+  self.categories->exists(c | c.id = categoryId)
+post:
+  -- Hasil operasi adalah kategori dengan ID yang diberikan
+  result.id = categoryId
+
+-- Operasi: getCategoryList
+-- Mendapatkan daftar semua kategori
+-- @return: Daftar semua kategori
+context ICategoryMgt::getCategoryList(): List<Category>
+pre:
+  -- Tidak ada pre-condition khusus
+  true
+post:
+  -- Hasil operasi adalah daftar semua kategori
+  result = self.categories
+
+-- Operasi: updateCategory
+-- Memperbarui detail kategori
+-- @param categoryId: ID kategori yang akan diperbarui
+-- @param name: Nama baru kategori
+-- @param type: Tipe baru kategori
+-- @param icon: Ikon baru kategori
+-- @return: True jika berhasil diperbarui, false jika gagal
+context ICategoryMgt::updateCategory(categoryId: CategoryId, name: String, type: String, icon: String): Boolean
+pre:
+  -- Kategori dengan ID yang diberikan harus ada
+  self.categories->exists(c | c.id = categoryId)
+  -- Nama kategori tidak boleh kosong
+  and name <> ''
+  -- Tipe kategori harus valid
+  and Set{'INCOME', 'EXPENSE'}->includes(type)
+  -- Nama kategori harus unik dalam tipe yang sama kecuali milik kategori yang sedang diupdate
+  and (self.categories->forAll(c | c.name = name and c.type = type implies c.id = categoryId) or
+       not self.categories->exists(c | c.name = name and c.type = type))
+post:
+  -- Kategori telah diperbarui
+  self.categories->exists(c | c.id = categoryId and c.name = name and c.type = type and c.icon = icon)
+  -- Jumlah kategori tidak berubah
+  and self.categories->size() = self.categories@pre->size()
+  -- Hasil operasi adalah true
+  and result = true
+
+-- Operasi: createBudget
+-- Membuat anggaran baru
+-- @param name: Nama anggaran
+-- @param amount: Jumlah anggaran
+-- @param period: Periode anggaran
+-- @param categoryIds: Daftar ID kategori yang tercakup dalam anggaran
+-- @return: ID anggaran yang baru dibuat
+context ICategoryMgt::createBudget(name: String, amount: Currency, period: DateRange, categoryIds: List<CategoryId>): BudgetId
+pre:
+  -- Nama anggaran tidak boleh kosong
+  name <> ''
+  -- Jumlah anggaran harus positif
+  and amount > 0
+  -- Periode anggaran harus valid
+  and period.startDate < period.endDate
+  -- Kategori yang dipilih harus ada dan bertipe EXPENSE
+  and categoryIds->forAll(id | 
+       self.categories->exists(c | c.id = id and c.type = 'EXPENSE'))
+  -- Minimal satu kategori harus dipilih
+  and categoryIds->size() > 0
+post:
+  -- Anggaran baru telah ditambahkan
+  self.budgets->exists(b | b.name = name and 
+                           b.amount = amount and 
+                           b.period = period and
+                           b.categoryIds = categoryIds and
+                           b.isActive = true and
+                           result = b.id)
+  -- Jumlah anggaran bertambah satu
+  and self.budgets->size() = self.budgets@pre->size() + 1
+
+-- Operasi: getBudgetStatus
+-- Mendapatkan status anggaran
+-- @param budgetId: ID anggaran yang ingin didapatkan statusnya
+-- @return: Status anggaran yang berisi jumlah yang telah digunakan dan sisa anggaran
+context ICategoryMgt::getBudgetStatus(budgetId: BudgetId): BudgetStatus
+pre:
+  -- Anggaran dengan ID yang diberikan harus ada
+  self.budgets->exists(b | b.id = budgetId)
+post:
+  -- Hasil operasi adalah status anggaran dengan ID yang diberikan
+  let budget = self.budgets->select(b | b.id = budgetId)->first() in
+  let transactions = IAccountMgt.transactions->select(t | 
+                      t.type = 'EXPENSE' and
+                      budget.categoryIds->includes(t.categoryId) and
+                      t.date >= budget.period.startDate and
+                      t.date <= budget.period.endDate) in
+  let usedAmount = transactions->collect(t | t.amount)->sum() in
+  result.budgetId = budgetId and
+  result.totalAmount = budget.amount and
+  result.usedAmount = usedAmount and
+  result.remainingAmount = budget.amount - usedAmount
